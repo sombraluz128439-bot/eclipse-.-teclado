@@ -1,0 +1,36 @@
+name: Gerar APK
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Localizar projeto
+        id: proj
+        run: |
+          find . -name '*.zip' -not -path './.git/*' -print0 | while IFS= read -r -d '' z; do
+            unzip -oq "$z" -d _extraido
+          done
+          S=$(find . -name settings.gradle -not -path './.git/*' | head -n 1)
+          if [ -z "$S" ]; then
+            echo "settings.gradle não encontrado. Arquivos no repositório:"
+            find . -type f -not -path './.git/*'
+            exit 1
+          fi
+          echo "dir=$(dirname "$S")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - run: gradle assembleDebug --no-daemon
+        working-directory: ${{ steps.proj.outputs.dir }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EclipseTeclado-APK
+          path: "**/app-debug.apk"
